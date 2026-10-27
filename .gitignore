@@ -1,0 +1,93 @@
+# ─────────────────────────────────────────────────────────────
+# Java / Spring Boot / Maven / Gradle  (backend/)
+# ─────────────────────────────────────────────────────────────
+target/
+build/
+!**/src/**/target/
+!**/src/**/build/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# Maven
+.mvn/wrapper/maven-wrapper.jar
+# (keep mvnw / mvnw.cmd wrapper scripts)
+
+# Gradle
+.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+
+# Spring Boot
+*.log
+spring.log
+
+# ─────────────────────────────────────────────────────────────
+# Node.js / Next.js  (frontend/)
+# ─────────────────────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+.yarn/
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+
+# Build / misc
+dist/
+.turbo/
+*.tsbuildinfo
+
+# npm/yarn/pnpm debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ─────────────────────────────────────────────────────────────
+# Environment / secrets
+# ─────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.local
+
+# ─────────────────────────────────────────────────────────────
+# IDEs / editors
+# ─────────────────────────────────────────────────────────────
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.swp
+*.swo
+
+# ─────────────────────────────────────────────────────────────
+# OS
+# ─────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ─────────────────────────────────────────────────────────────
+# Vaadin (generated frontend artifacts — the UI is Java-only,
+# nothing under here is hand-written, so none of it is committed)
+# ─────────────────────────────────────────────────────────────
+node_modules/
+/backend/src/main/frontend/
+/backend/src/main/bundles/
+/backend/package.json
+/backend/package-lock.json
+/backend/pnpm-lock.yaml
+/backend/vite.config.ts
+/backend/vite.generated.ts
+/backend/tsconfig.json
+/backend/types.d.ts
+/backend/.vaadin/

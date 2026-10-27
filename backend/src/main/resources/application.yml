@@ -1,0 +1,164 @@
+spring:
+  application:
+    name: model-radar
+
+  # ── Database ──────────────────────────────────────────────────────────
+  # Points at the PostgreSQL instance started by the project-root docker-compose.yml.
+  # Values are overridable via environment variables so the same build runs
+  # unchanged in other environments.
+  datasource:
+    # Host port 5433 matches docker-compose.yml (5433:5432), chosen to avoid
+    # clashing with a native PostgreSQL that may already hold 5432.
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/model_radar}
+    username: ${SPRING_DATASOURCE_USERNAME:modelradar}
+    password: ${SPRING_DATASOURCE_PASSWORD:modelradar}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      # Flyway owns the schema (see db/migration). Hibernate only VALIDATES that the
+      # entity mapping matches the Flyway-created tables — it never creates/alters DDL.
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+        # Use the modern PostgreSQL dialect explicitly (optional; Hibernate detects it).
+        jdbc:
+          time_zone: UTC
+    open-in-view: false
+
+# ── Dev: JPA / SQL logging ──────────────────────────────────────────────
+# Logs each SQL statement Hibernate runs (with formatting from format_sql above)
+# and the bound parameter values. Verbose — intended for local dev only.
+logging:
+  level:
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
+
+# ── Scheduled sync (ScheduledSyncJob) ────────────────────────────────────
+# DISABLED by default here so nothing fires during local dev: with `sync.cron`
+# unset, the job's cron resolves to "-" (Spring's "disabled" marker). Scheduling
+# is turned on in the `prod` profile (application-prod.yml → daily 08:00 local).
+# To enable temporarily, override at runtime (no redeploy), e.g.:
+#   SYNC_CRON="*/30 * * * * *" ./mvnw spring-boot:run   # every 30 seconds
+#   SYNC_CRON="0 */5 * * * *"  ./mvnw spring-boot:run   # every 5 minutes
+# A one-time kickoff run can be scheduled via `sync.kickoff` (ISO-8601 with offset),
+# e.g. SYNC_KICKOFF="2026-07-28T14:10:00-04:00" — runs once at that instant.
+#
+# ENABLED: the daily sync runs at 08:00 local time every day.
+sync:
+  cron: "0 0 8 * * *"
+
+# ── Model Radar app config ──────────────────────────────────────────────
+# Bound by ModelRadarProperties (prefix: model-radar).
+model-radar:
+  # Hugging Face Hub API client + "new" window.
+  huggingface:
+    base-url: https://huggingface.co
+    page-size: 100          # newest N models pulled per tag / per keyword each run
+    new-window-days: 7      # a model is "NEW" if first seen within this many days
+    retry-backoff: 2s       # wait before the single retry after a 429
+    response-timeout: 20s   # per-request timeout for Hub API calls
+    readme-fetch-limit: 300 # max README fetches per sync (populates shortDescription); 0 disables
+
+  # ── Re-upload detection ───────────────────────────────────────────────
+  # A large share of Hugging Face uploads are other people's models republished in
+  # another format (GGUF/AWQ/GPTQ quantizations, MLX conversions, mirrors). They are
+  # useful artefacts but they are not new models: counting them inflates the release
+  # charts and lets a prolific quantizer outrank the labs actually shipping work.
+  #
+  # Models matching either list are flagged `derivative = true` and excluded from the
+  # analytics (they stay in the grid — untick "Originals only" to see them).
+  # Add an account or pattern here and it takes effect on the next sync; existing rows
+  # are reclassified as they are refreshed.
+  quality:
+    # Accounts whose output is overwhelmingly re-uploads. Matched case-insensitively
+    # on the whole author name.
+    mirror-authors:
+      - mradermacher
+      - TheBloke
+      - bartowski
+      - QuantFactory
+      - LoneStriker
+      - RichardErkhov
+      - mlx-community
+      - second-state
+      - tensorblock
+      - DevQuasar
+      - nm-testing
+      - Lewdiculous
+      - featherless-ai-quantized
+
+    # Case-insensitive regexes matched against the repo name (the part after
+    # "author/"), so an org name can't condemn every model it publishes.
+    derivative-patterns:
+      - '(^|[-_.])gguf([-_.]|$)'
+      - '(^|[-_.])ggml([-_.]|$)'
+      - '(^|[-_.])awq([-_.]|$)'
+      - '(^|[-_.])gptq([-_.]|$)'
+      - '(^|[-_.])exl2([-_.]|$)|exllama'
+      - '(^|[-_.])mlx([-_.]|$)'
+      - 'imatrix'
+      - '(^|[-_.])i1[-_.]'
+      - '(^|[-_.])[2-8]bit([-_.]|$)'
+      - '(^|[-_.])(int4|int8|fp8|fp4|nf4|w8a8|w4a16|w8a16)([-_.]|$)'
+      - '(^|[-_.])bnb([-_.]|$)|bitsandbytes'
+      - 'quantiz'
+      - '(^|[-_.])q[2-8]_[0-9kmsl]'
+
+  # ── Tracking catalog (Section 4) ──────────────────────────────────────
+  # WHAT the sync considers relevant to INTICS, externalized here so anyone
+  # (not just developers) can add/remove tags & keywords without recompiling.
+  # Organised by INTICS category — a model found via a tag/keyword is filed
+  # under that category. To track a new tag, add it under the right category.
+  tracking:
+    # Strategy A — official Hugging Face pipeline tags, grouped by category.
+    pipeline-tags:
+      VLM:
+        - image-text-to-text
+        - visual-question-answering
+      OCR:
+        - image-to-text                     # most OCR models live here
+        - optical-character-recognition
+      LLM:
+        - text-generation
+        - text2text-generation
+        - question-answering
+      DIAGRAM_ANALYSIS:
+        - object-detection
+        - zero-shot-object-detection
+        - keypoint-detection
+      LAYOUT:
+        - image-segmentation
+        - table-question-answering
+      DOCUMENT_QA:
+        - document-question-answering
+      EMBEDDING:
+        - feature-extraction
+        - sentence-similarity
+        - visual-document-retrieval
+    # Strategy B — free-text keyword searches, grouped by the category a hit is filed under.
+    keywords:
+      OCR:
+        - OCR
+        - handwriting
+        - receipt
+      VLM:
+        - VLM
+        - vision-language
+      DIAGRAM_ANALYSIS:
+        - diagram
+        - "P&ID"
+        - chart
+        - grounding
+        - bounding box
+      DOCUMENT_QA:
+        - document
+        - document AI
+        - docQA
+        - form understanding
+        - invoice
+      LAYOUT:
+        - layout
+        - table extraction
+        - table structure

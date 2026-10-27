@@ -1,0 +1,30 @@
+# Local PostgreSQL for INTICS Model Radar development.
+# Start with:  docker compose up -d
+# Stop with:   docker compose down        (data is preserved in the named volume)
+# Wipe data:   docker compose down -v     (removes the named volume)
+services:
+  postgres:
+    image: postgres:17
+    container_name: model-radar-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: model_radar
+      POSTGRES_USER: modelradar
+      POSTGRES_PASSWORD: modelradar
+    ports:
+      # host:container — the Spring Boot app connects to localhost:5433.
+      # Host port is 5433 (not 5432) to avoid colliding with a native PostgreSQL
+      # install that may already occupy 5432 on the dev machine. Inside the
+      # container Postgres still listens on its standard 5432.
+      - "5433:5432"
+    volumes:
+      # Named volume so data survives `docker compose down` / container restarts.
+      - model-radar-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U modelradar -d model_radar"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  model-radar-pgdata:

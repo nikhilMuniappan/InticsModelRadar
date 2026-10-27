@@ -1,0 +1,10 @@
+# Production overrides (active with SPRING_PROFILES_ACTIVE=prod).
+#
+# Enables the scheduled sync. In the default profile `sync.cron` is unset, so the
+# job's cron resolves to "-" (disabled) and nothing fires during local development.
+sync:
+  # Daily at 08:00 local time. Change this to reschedule without a code change —
+  # e.g. a shorter interval to verify the scheduler, then set it back:
+  #   every 5 minutes:  "0 */5 * * * *"
+  #   every 30 seconds: "*/30 * * * * *"
+  cron: "0 0 8 * * *"
